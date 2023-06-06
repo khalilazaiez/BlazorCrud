@@ -1,0 +1,33 @@
+﻿@page "/persons"
+@using Services
+@inject IPersonService personService
+@inject IJSRuntime jsRuntime
+<h3>Persons</h3>
+<a href="/person/add" class="btn btn-outline-dark my-2">Add more</a>
+<div class="row">
+    <div class="col-md-6">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach(var person in persons)
+            {
+                <tr>
+                    <td>@person.Name</td>
+                    <td>@person.Email</td>
+                    <td>
+                            <a href="/person/edit/@person.Id" class="btn btn-success">Edit</a>
+                            <a class="btn btn-danger" @onclick="async ()=> await Delete(person)">Delete</a>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
