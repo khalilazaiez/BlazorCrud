@@ -22,9 +22,22 @@ namespace BlazorCrud.Providers
                 .Build();
         }
 
+        //public async Task LogActivity(Dictionary<string, Dictionary<string, object>> activities)
+        //{
+        //    foreach(var activity in activities)
+        //    {
+        //        using(var activityEvent = ActivitySource.CreateActivity())
+        //    }
+        //}
+
         public void Dispose()
         {
             _tracerProvider.Dispose();
+        }
+
+        public async Task ReceiveBundle(ActivityBundle activityBundle)
+        {
+            throw new NotImplementedException();
         }
     }
 }

@@ -12,43 +12,79 @@ using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry.Metrics;
 using BlazorCrud.Interfaces;
 using BlazorCrud.Providers;
-
-var builder = WebApplication.CreateBuilder(args);
-
-// Add services to the container.
-builder.Services.AddRazorPages();
-builder.Services.AddServerSideBlazor();
-builder.Services.AddRazorPages();
-builder.Services.AddServerSideBlazor();
-builder.Services.AddScoped<ITelemetryProvider, JaegerTelemetryProvider>();
-//addscope
-builder.Services.AddOpenTelemetry().WithTracing(
-    builder => builder.AddAspNetCoreInstrumentation());
-builder.Services.AddSingleton<WeatherForecastService>();
-builder.Services.AddDbContext<DatabaseContext>(options =>
-    options.UseInMemoryDatabase("bd"));
-
-builder.Services.AddTransient<IPersonService,PersonService>();
-var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-if (!app.Environment.IsDevelopment())
+using System.Diagnostics.Metrics;
+using OpenTelemetry.Exporter;
+using Prometheus;
+internal class Program
 {
-    app.UseExceptionHandler("/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-    app.UseHsts();
+    private static void Main(string[] args)
+    {
+        var builder = WebApplication.CreateBuilder(args);
+        // Add services to the container.
+        builder.Services.AddRazorPages();
+        builder.Services.AddServerSideBlazor();
+        builder.Services.AddRazorPages();
+        builder.Services.AddServerSideBlazor();
+        builder.Services.AddScoped<ITelemetryProvider, JaegerTelemetryProvider>();
+        builder.Services.AddScoped<IMetricsProvider, PrometheusTelemetryProvider>();
+        builder.Services.AddSingleton<WeatherForecastService>();
+        builder.Services.AddTransient<IPersonService, PersonService>();
+
+        builder.Services.AddDistributedMemoryCache();
+        builder.Services.AddSession(options =>
+        {
+            options.IdleTimeout = TimeSpan.FromSeconds(10);
+            options.Cookie.HttpOnly = true;
+            options.Cookie.IsEssential = true;
+        });
+        builder.Services.AddSingleton<UserActivityService>();
+        builder.Services.AddSingleton<UserMetricsServices>();
+
+        
+
+        builder.Services.AddOpenTelemetry().WithTracing(
+            builder => builder.AddAspNetCoreInstrumentation());
+
+
+        //addscope
+        builder.Services.AddOpenTelemetry()
+            .WithMetrics(builder => builder
+                .AddConsoleExporter()
+                .AddAspNetCoreInstrumentation()
+                .AddRuntimeInstrumentation()
+                .AddMeter(UserActivityService.Meter.Name)
+                .AddPrometheusExporter());
+
+
+         builder.Services.AddDbContext<DatabaseContext>(options =>
+            options.UseInMemoryDatabase("bd"));
+
+
+        var app = builder.Build();
+
+        // Configure the HTTP request pipeline.
+        if (!app.Environment.IsDevelopment())
+        {
+            app.UseExceptionHandler("/Error");
+            // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+            app.UseHsts();
+        }
+        app.UseSession();
+        app.UseRouting();
+        app.UseAuthorization();
+        app.UseOpenTelemetryPrometheusScrapingEndpoint();
+        app.UseMiddleware<UserActivityMiddleware>();
+        app.UseStaticFiles();
+        app.UseHttpsRedirection();
+
+
+
+        app.MapBlazorHub();
+        app.MapFallbackToPage("/_Host");
+
+        app.Run();
+    }
 }
-
-app.UseHttpsRedirection();
-
-app.UseStaticFiles();
-
-app.UseRouting();
-
-app.MapBlazorHub();
-app.MapFallbackToPage("/_Host");
-
-app.Run();
 
 public static class DiagnosticsConfig
 {
